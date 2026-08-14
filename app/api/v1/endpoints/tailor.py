@@ -32,33 +32,39 @@ async def generate_tailored_application(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    # Resolve resume text from whichever field was provided
     resume_text = payload.raw_resume_text or ""
     if not resume_text and payload.structured_resume:
         resume_text = payload.structured_resume.model_dump_json()
-        
+
     if not resume_text:
         raise HTTPException(status_code=400, detail="Must provide either 'raw_resume_text' or 'structured_resume'.")
+
+    # Resolve optional hints BEFORE calling the LLM (fixes NameError — 'result' doesn't exist yet)
+    job_title_hint = payload.target_job_title or ""
+    company_hint = payload.target_company or ""
 
     llm = LLMService()
     result = await llm.tailor_application(
         resume_text=resume_text,
         jd_text=payload.job_description_text,
-        job_title=payload.target_job_title or result.job_analysis.job_title if 'result' in locals() else '',
-        company=payload.target_company or ''
+        job_title=job_title_hint,
+        company=company_hint,
     )
 
     # Persist the application in PostgreSQL
     new_application = Application(
         user_id=current_user.id,
-        job_title=result.job_analysis.job_title or (payload.target_job_title or "Target Role"),
-        company_name=result.job_analysis.company_name or (payload.target_company or "Target Company"),
+        job_title=result.job_analysis.job_title or job_title_hint or "Target Role",
+        company_name=result.job_analysis.company_name or company_hint or "Target Company",
         job_description_raw=payload.job_description_text,
         extracted_keywords=result.job_analysis.model_dump(),
         ats_match_score=result.ats_score.overall_match_score,
-        status="Generated"
+        status="Generated",
     )
     db.add(new_application)
     await db.commit()
     await db.refresh(new_application)
 
     return result
+
