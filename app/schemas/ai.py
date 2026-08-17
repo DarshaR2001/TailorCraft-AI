@@ -16,6 +16,15 @@ class ATSScoreResponse(BaseModel):
     missing_skills: List[str] = Field(default_factory=list)
     improvement_recommendations: List[str] = Field(default_factory=list)
 
+class AnalyzeJobRequest(BaseModel):
+    """Request body for POST /tailor/analyze-job"""
+    job_description_text: str = Field(..., min_length=1, description="The raw job description text to analyze")
+
+class ATSScoreRequest(BaseModel):
+    """Request body for POST /tailor/ats-score"""
+    resume_text: str = Field(..., min_length=1, description="The candidate's resume text")
+    job_description_text: str = Field(..., min_length=1, description="The job description text to match against")
+
 class TailorRequest(BaseModel):
     raw_resume_text: Optional[str] = None
     structured_resume: Optional[StructuredResume] = None
@@ -28,3 +37,4 @@ class TailoredApplicationResponse(BaseModel):
     ats_score: ATSScoreResponse
     tailored_resume: StructuredResume
     cover_letter: str
+

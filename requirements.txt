@@ -1,5 +1,32 @@
-email-validator>=2.0.0
+# API Framework
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+python-multipart>=0.0.9
+
+# Database
+sqlalchemy[asyncio]>=2.0.0
+asyncpg>=0.29.0
+alembic>=1.13.0
+
+# Settings & Config
+pydantic-settings>=2.0.0
+python-dotenv>=1.0.0
+
+# Auth & Security
 passlib[bcrypt]>=1.7.4
 python-jose[cryptography]>=3.3.0
-google-genai>=1.0.0
-openai>=1.14.0
+email-validator>=2.0.0
+
+# Google Gemini AI
+google-genai>=2.0.0
+
+# OpenAI-compatible client (used by LLMService via OpenRouter)
+openai>=1.30.0
+
+# Cloud Storage (S3/R2)
+boto3>=1.34.0
+
+# HTTP & Web Scraping
+httpx>=0.27.0
+requests>=2.31.0
+beautifulsoup4>=4.12.0

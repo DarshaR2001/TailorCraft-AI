@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.schemas.ai import TailorRequest, JobAnalysisResponse, ATSScoreResponse, TailoredApplicationResponse
+from app.schemas.ai import TailorRequest, JobAnalysisResponse, ATSScoreResponse, TailoredApplicationResponse, AnalyzeJobRequest, ATSScoreRequest
 from app.services.llm_service import LLMService
 from app.db.session import get_db
 from app.models.models import Application, User
@@ -10,21 +10,15 @@ from typing import Optional
 router = APIRouter(prefix="/tailor", tags=["AI Tailoring Engine"])
 
 @router.post("/analyze-job", response_model=JobAnalysisResponse)
-async def analyze_job(payload: dict):
-    jd_text = payload.get("job_description_text", "")
-    if not jd_text.strip():
-        raise HTTPException(status_code=400, detail="Job description text cannot be empty.")
+async def analyze_job(payload: AnalyzeJobRequest):
+    jd_text = payload.job_description_text
     llm = LLMService()
     return await llm.analyze_job_description(jd_text)
 
 @router.post("/ats-score", response_model=ATSScoreResponse)
-async def get_ats_score(payload: dict):
-    resume_text = payload.get("resume_text", "")
-    jd_text = payload.get("job_description_text", "")
-    if not resume_text or not jd_text:
-        raise HTTPException(status_code=400, detail="Both 'resume_text' and 'job_description_text' are required.")
+async def get_ats_score(payload: ATSScoreRequest):
     llm = LLMService()
-    return await llm.calculate_ats_match(resume_text, jd_text)
+    return await llm.calculate_ats_match(payload.resume_text, payload.job_description_text)
 
 @router.post("/generate", response_model=TailoredApplicationResponse)
 async def generate_tailored_application(

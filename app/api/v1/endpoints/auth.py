@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
+from sqlalchemy import select
 from jose import jwt, JWTError
 import uuid
 
@@ -13,7 +13,8 @@ from app.core.config import settings
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login")
+# Points at /token so Swagger's Authorize button uses the OAuth2 form flow
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/token")
 
 async def get_current_user(
     db: AsyncSession = Depends(get_db),
@@ -26,7 +27,7 @@ async def get_current_user(
     )
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: str = payload.get("sub")
+        user_id: str | None = payload.get("sub")
         if user_id is None:
             raise credentials_exception
         token_data = TokenPayload(sub=user_id)
@@ -61,6 +62,7 @@ async def register(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
 
 @router.post("/login", response_model=Token)
 async def login(user_in: UserLogin, db: AsyncSession = Depends(get_db)):
+    """JSON-based login for programmatic API clients."""
     result = await db.execute(select(User).where(User.email == user_in.email))
     user = result.scalars().first()
     if not user or not verify_password(user_in.password, user.hashed_password):
@@ -73,6 +75,28 @@ async def login(user_in: UserLogin, db: AsyncSession = Depends(get_db)):
     access_token = create_access_token(subject=str(user.id))
     return {"access_token": access_token, "token_type": "bearer"}
 
+@router.post("/token", response_model=Token)
+async def login_oauth2_form(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    OAuth2 Password Flow endpoint — accepts form-encoded username/password.
+    Used by Swagger UI's Authorize button. The 'username' field should contain the user's email.
+    """
+    result = await db.execute(select(User).where(User.email == form_data.username))
+    user = result.scalars().first()
+    if not user or not verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    access_token = create_access_token(subject=str(user.id))
+    return {"access_token": access_token, "token_type": "bearer"}
+
 @router.get("/profile", response_model=UserOut)
 async def get_profile(current_user: User = Depends(get_current_user)):
     return current_user
+

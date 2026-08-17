@@ -1,5 +1,6 @@
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, timezone
+from typing import Optional
 
 from sqlalchemy import (
     BigInteger,
@@ -14,7 +15,7 @@ from sqlalchemy import (
     Text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy.orm import declarative_base, relationship, Mapped, mapped_column
 
 Base = declarative_base()
 
@@ -22,17 +23,17 @@ Base = declarative_base()
 class User(Base):
     __tablename__ = 'users'
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    email = Column(String(255), unique=True, nullable=False, index=True)
-    full_name = Column(String(255), nullable=False)
-    hashed_password = Column(String(255), nullable=False)
-    headline = Column(String(255), nullable=True)
-    phone = Column(String(50), nullable=True)
-    location = Column(String(100), nullable=True)
-    linkedin_url = Column(String(255), nullable=True)
-    github_url = Column(String(255), nullable=True)
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
-    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    full_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
+    headline: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    phone: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    location: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    linkedin_url: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    github_url: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     applications = relationship('Application', back_populates='user', cascade='all, delete-orphan')
 
@@ -49,7 +50,7 @@ class Application(Base):
     ats_match_score = Column(Integer, CheckConstraint('ats_match_score BETWEEN 0 AND 100'), nullable=True)
     status = Column(String(50), default='Generated')
     created_at = Column(Date, nullable=False, default=date.today)
-    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     user = relationship('User', back_populates='applications')
     artifacts = relationship('DocumentArtifact', back_populates='application', cascade='all, delete-orphan')
@@ -68,6 +69,6 @@ class DocumentArtifact(Base):
     file_name = Column(String(255), nullable=False)
     storage_path = Column(String(500), nullable=False)
     file_size_bytes = Column(BigInteger, nullable=True)
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     application = relationship('Application', back_populates='artifacts')

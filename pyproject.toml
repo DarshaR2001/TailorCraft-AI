@@ -1,0 +1,5 @@
+[tool.pyrefly]
+search-paths = [
+    "venv/Lib/site-packages",
+    "."
+]

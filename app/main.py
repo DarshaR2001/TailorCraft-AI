@@ -23,3 +23,14 @@ app.include_router(tailor.router, prefix="/api/v1")
 @app.get("/health", tags=["System"])
 async def health_check():
     return {"status": "healthy", "service": "TailorCraft AI Backend"}
+
+@app.get("/", tags=["System"], include_in_schema=False)
+async def root():
+    return {
+        "service": "TailorCraft AI API",
+        "version": "1.0.0",
+        "status": "running",
+        "docs": "/docs",
+        "health": "/health",
+    }
+
