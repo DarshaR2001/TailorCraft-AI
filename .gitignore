@@ -1,38 +1,32 @@
-# Byte-compiled / optimized / DLL files
+# ========================
+# Python & Backend
+# ========================
 __pycache__/
 *.py[cod]
 *.class
-
-# Environments
-venv/
-env/
-ENV/
-.venv/
-
-# Environment Variables & Secrets
-.env
-.env.local
-.env.*.local
-
-# Database & SQLite files
+backend/venv/
+backend/.env
+backend/.env.local
+backend/storage/
 *.sqlite3
-*.db
-
-# Alembic cache
 alembic/versions/__pycache__/
 
-# OS Generated
+# ========================
+# Node & Frontend
+# ========================
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/.env
+frontend/.env*.local
+frontend/.turbo/
+.npm
+
+# ========================
+# OS & IDE
+# ========================
 .DS_Store
 Thumbs.db
-Desktop.ini
-
-# IDE & Editor Settings
 .vscode/
 .idea/
-*.swp
-*.swo
-
-# Testing & Coverage
-.coverage
-htmlcov/
-.pytest_cache/
