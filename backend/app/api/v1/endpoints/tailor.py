@@ -1,4 +1,4 @@
-﻿from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.models.models import User, Application
@@ -56,4 +56,5 @@ async def generate_tailored_application(
     await db.commit()
     await db.refresh(app_record)
 
+    result.application_id = str(app_record.id)
     return result

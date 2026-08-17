@@ -3,7 +3,7 @@ from typing import List, Optional
 
 class ContactInfo(BaseModel):
     full_name: str
-    email: Optional[EmailStr] = None
+    email: Optional[str] = None
     phone: Optional[str] = None
     location: Optional[str] = None
     linkedin_url: Optional[str] = None

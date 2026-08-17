@@ -1,4 +1,4 @@
-﻿import os
+import os
 import uuid
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -32,6 +32,11 @@ class ArtifactOut(BaseModel):
         from_attributes = True
 
 
+class GenerateDocumentsRequest(BaseModel):
+    tailored_resume: Optional[StructuredResume] = None
+    cover_letter: Optional[str] = None
+
+
 class GenerateDocumentsResponse(BaseModel):
     application_id: uuid.UUID
     job_title: str
@@ -45,6 +50,7 @@ class GenerateDocumentsResponse(BaseModel):
 @router.post("/{application_id}/generate-documents", response_model=GenerateDocumentsResponse)
 async def generate_application_documents(
     application_id: uuid.UUID,
+    payload: Optional[GenerateDocumentsRequest] = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -66,49 +72,82 @@ async def generate_application_documents(
             detail="Application not found or unauthorized access."
         )
 
-    # 2. Extract Structured Resume from Application record (or fallback to user profile)
-    user_contact = ContactInfo(
-        full_name=current_user.full_name,
-        email=current_user.email,
-        phone=current_user.phone,
-        location=current_user.location,
-        linkedin_url=current_user.linkedin_url,
-        github_url=current_user.github_url
-    )
+    # 2. Resolve Structured Resume & Cover Letter (from payload or saved DB record)
+    resume_obj: Optional[StructuredResume] = None
+    if payload and payload.tailored_resume:
+        resume_obj = payload.tailored_resume
+        application.tailored_resume = resume_obj.model_dump()
+    elif application.tailored_resume:
+        try:
+            resume_obj = StructuredResume(**application.tailored_resume)
+        except Exception as e:
+            print(f"[Export] Could not parse application.tailored_resume: {e}")
 
-    resume_obj = StructuredResume(
-        contact_info=user_contact,
-        professional_summary=f"Dedicated {application.job_title} candidate with proven technical expertise tailored for {application.company_name}.",
-        skills=Skills(
-            technical_skills=application.extracted_keywords.get("matched_skills", []) if application.extracted_keywords else [],
-            tools_and_frameworks=[],
-            soft_skills=[]
+    # Fallback if resume data is missing
+    if not resume_obj:
+        user_contact = ContactInfo(
+            full_name=current_user.full_name,
+            email=current_user.email,
+            phone=current_user.phone,
+            location=current_user.location,
+            linkedin_url=current_user.linkedin_url,
+            github_url=current_user.github_url
         )
-    )
+        resume_obj = StructuredResume(
+            contact_info=user_contact,
+            professional_summary=f"Dedicated {application.job_title} candidate tailored for {application.company_name}.",
+            skills=Skills(
+                technical_skills=application.extracted_keywords.get("matched_skills", []) if application.extracted_keywords else [],
+                tools_and_frameworks=[],
+                soft_skills=[]
+            )
+        )
 
-    cover_letter_content = (
-        f"Dear Hiring Team at {application.company_name},\n\n"
-        f"I am writing to express my strong interest in the {application.job_title} position. "
-        f"With a dedicated background aligned to your target requirements, I am confident in delivering immediate value.\n\n"
-        f"Thank you for considering my application. I look forward to discussing how my experience will benefit {application.company_name}.\n\n"
-        f"Sincerely,\n{current_user.full_name}"
-    )
+    # Resolve Cover Letter
+    cover_letter_content: str = ""
+    if payload and payload.cover_letter:
+        cover_letter_content = payload.cover_letter
+        application.cover_letter = cover_letter_content
+    elif application.cover_letter:
+        cover_letter_content = application.cover_letter
+    else:
+        cover_letter_content = (
+            f"Dear Hiring Team at {application.company_name},\n\n"
+            f"I am writing to express my strong interest in the {application.job_title} position. "
+            f"With a dedicated background aligned to your target requirements, I am confident in delivering immediate value.\n\n"
+            f"Thank you for considering my application. I look forward to discussing how my experience will benefit {application.company_name}.\n\n"
+            f"Sincerely,\n{current_user.full_name}"
+        )
 
-    candidate_contact_line = " | ".join(
-        filter(None, [str(current_user.email), current_user.phone, current_user.location])
-    )
+    # Candidate Contact Info Line
+    candidate_name = resume_obj.contact_info.full_name or current_user.full_name
+    contact_parts = []
+    if resume_obj.contact_info.email:
+        contact_parts.append(str(resume_obj.contact_info.email))
+    elif current_user.email:
+        contact_parts.append(str(current_user.email))
+    if resume_obj.contact_info.phone:
+        contact_parts.append(resume_obj.contact_info.phone)
+    if resume_obj.contact_info.location:
+        contact_parts.append(resume_obj.contact_info.location)
+    if resume_obj.contact_info.linkedin_url:
+        contact_parts.append(str(resume_obj.contact_info.linkedin_url))
+    if resume_obj.contact_info.github_url:
+        contact_parts.append(str(resume_obj.contact_info.github_url))
 
-    # 3. Generate In-Memory Binary Buffers
+    candidate_contact_line = " | ".join(filter(None, contact_parts))
+
+    # 3. Generate In-Memory Binary Buffers using full AI tailored data
     cv_pdf_buf = DocumentGenerationService.generate_resume_pdf(resume_obj)
     cv_docx_buf = DocumentGenerationService.generate_resume_docx(resume_obj)
     cl_pdf_buf = DocumentGenerationService.generate_cover_letter_pdf(
-        candidate_name=current_user.full_name,
+        candidate_name=candidate_name,
         contact_info_line=candidate_contact_line,
         company_name=application.company_name,
         content=cover_letter_content
     )
     cl_docx_buf = DocumentGenerationService.generate_cover_letter_docx(
-        candidate_name=current_user.full_name,
+        candidate_name=candidate_name,
         contact_info_line=candidate_contact_line,
         company_name=application.company_name,
         content=cover_letter_content
@@ -117,12 +156,13 @@ async def generate_application_documents(
     # 4. Save Artifacts to Storage and Database
     job_tag = application.job_title
     comp_tag = application.company_name
+    safe_name = "".join(c for c in candidate_name if c.isalnum() or c in (" ", "_", "-")).strip().replace(" ", "_")
 
     artifacts_meta = [
-        ("CV_PDF", f"{current_user.full_name.replace(' ', '_')}_Resume.pdf", cv_pdf_buf, "application/pdf"),
-        ("CV_DOCX", f"{current_user.full_name.replace(' ', '_')}_Resume.docx", cv_docx_buf, "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
-        ("COVER_LETTER_PDF", f"{current_user.full_name.replace(' ', '_')}_Cover_Letter.pdf", cl_pdf_buf, "application/pdf"),
-        ("COVER_LETTER_DOCX", f"{current_user.full_name.replace(' ', '_')}_Cover_Letter.docx", cl_docx_buf, "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+        ("CV_PDF", f"{safe_name}_Resume.pdf", cv_pdf_buf, "application/pdf"),
+        ("CV_DOCX", f"{safe_name}_Resume.docx", cv_docx_buf, "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+        ("COVER_LETTER_PDF", f"{safe_name}_Cover_Letter.pdf", cl_pdf_buf, "application/pdf"),
+        ("COVER_LETTER_DOCX", f"{safe_name}_Cover_Letter.docx", cl_docx_buf, "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
     ]
 
     saved_artifacts = []
