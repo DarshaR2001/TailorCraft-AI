@@ -1,3 +1,4 @@
+
 Set-Content -Path "README.md" -Value @'
 # 🎯 TailorCraft AI — Automated AI Resume & Cover Letter Customization System
 
@@ -48,4 +49,4 @@ backend/
 │   └── main.py                   # Application entry point & CORS configuration
 ├── alembic.ini                   # Alembic configuration
 ├── requirements.txt              # Project dependencies
-└── .env.example                  # Environment configuration template
+
