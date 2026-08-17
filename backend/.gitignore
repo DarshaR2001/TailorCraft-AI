@@ -1,0 +1,38 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.class
+
+# Environments
+venv/
+env/
+ENV/
+.venv/
+
+# Environment Variables & Secrets
+.env
+.env.local
+.env.*.local
+
+# Database & SQLite files
+*.sqlite3
+*.db
+
+# Alembic cache
+alembic/versions/__pycache__/
+
+# OS Generated
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDE & Editor Settings
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing & Coverage
+.coverage
+htmlcov/
+.pytest_cache/

@@ -1,6 +1,5 @@
-import uuid
+﻿import uuid
 from datetime import date, datetime
-
 from sqlalchemy import (
     BigInteger,
     CheckConstraint,
@@ -47,6 +46,8 @@ class Application(Base):
     job_description_raw = Column(Text, nullable=False)
     extracted_keywords = Column(JSONB, nullable=True)
     ats_match_score = Column(Integer, CheckConstraint('ats_match_score BETWEEN 0 AND 100'), nullable=True)
+    tailored_resume = Column(JSONB, nullable=True)
+    cover_letter = Column(Text, nullable=True)
     status = Column(String(50), default='Generated')
     created_at = Column(Date, nullable=False, default=date.today)
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -64,7 +65,7 @@ class DocumentArtifact(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     application_id = Column(UUID(as_uuid=True), ForeignKey('applications.id', ondelete='CASCADE'), nullable=False)
-    document_type = Column(String(50), nullable=False)  # CV_PDF, CV_DOCX, COVER_LETTER_PDF, COVER_LETTER_DOCX
+    document_type = Column(String(50), nullable=False)
     file_name = Column(String(255), nullable=False)
     storage_path = Column(String(500), nullable=False)
     file_size_bytes = Column(BigInteger, nullable=True)
