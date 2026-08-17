@@ -1,4 +1,4 @@
-﻿from typing import List, Optional
+from typing import List, Optional
 from pydantic import BaseModel, Field
 from app.schemas.resume import StructuredResume
 
@@ -43,3 +43,4 @@ class TailoredApplicationResponse(BaseModel):
     ats_score: ATSScoreResponse
     tailored_resume: StructuredResume
     cover_letter: str
+    application_id: Optional[str] = None
